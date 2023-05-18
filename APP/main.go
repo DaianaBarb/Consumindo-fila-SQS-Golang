@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -29,6 +30,41 @@ func pollMessages(channel chan<- *sqs.Message) {
 			channel <- message
 		}
 	}
+
+}
+
+func pollMessagesWaitGroup() {
+
+	for {
+		output, err := sq.ReceiveMessage(&sqs.ReceiveMessageInput{
+			QueueUrl:            aws.String("https://sqs.eu-central-1.amazonas.com/12345678/suaQueue"),
+			MaxNumberOfMessages: aws.Int64(2),
+			WaitTimeSeconds:     aws.Int64(15),
+		})
+		if err != nil {
+			fmt.Println("failed to fetch sqs message %v", err)
+		}
+
+		var wg sync.WaitGroup
+
+		for _, message := range output.Messages {
+
+			wg.Add(1)
+
+			go func(msg *sqs.Message) {
+				defer wg.Done()
+				viewMessage(msg)
+
+			}(message)
+
+		}
+		wg.Wait()
+	}
+
+}
+
+func viewMessage(msg *sqs.Message) {
+	fmt.Println(msg.Body)
 
 }
 
